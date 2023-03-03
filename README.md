@@ -1,7 +1,7 @@
 # nRF24L01_STM32
 based on https://github.com/LonelyWolf/stm32/tree/master/nrf24l01
 
-This lib is an update an adptation of the above lib, considering an updated aproach of the communication workflow.
+This lib is an update an adaptation of the above lib, considering an updated aproach of the communication workflow.
 
 Normal use is: 
 1. TX starts a ```nRF24_Talk``` with a ```nrf24_data_t``` packet made with ```nRF24_PrepareData``` , and can, if needed, wait for an answer.
