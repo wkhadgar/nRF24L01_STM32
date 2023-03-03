@@ -23,7 +23,8 @@ static const uint8_t nRF24_RX_PW_PIPE[] = {
         nRF24_REG_RX_PW_P2,
         nRF24_REG_RX_PW_P3,
         nRF24_REG_RX_PW_P4,
-        nRF24_REG_RX_PW_P5};
+        nRF24_REG_RX_PW_P5,
+};
 
 /**
  * @brief Addresses of the address registers.
@@ -35,7 +36,8 @@ static const uint8_t nRF24_ADDR_REGS[] = {
         nRF24_REG_RX_ADDR_P3,
         nRF24_REG_RX_ADDR_P4,
         nRF24_REG_RX_ADDR_P5,
-        nRF24_REG_TX_ADDR};
+        nRF24_REG_TX_ADDR,
+};
 
 /**
  * @brief Structure to encapsulate all the nRF24 config data.
