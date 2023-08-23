@@ -1,42 +1,71 @@
-//
-// Created by paulo on 21/11/2022.
-//
+/**
+ * @file nrf24l01p.c
+ * @author Paulo Santos (pauloxrms@gmail.com)
+ * @brief Defines the communication functions for the nRF24L01 module.
+ * @version 0.1
+ * @date 21-11-2022
+ *
+ * @copyright Copyright (c) 2023
+ *
+ */
 
 #include "nrf24l01p.h"
+#include "nrf_flags.h"
 #include "spi.h"
-#include "flags.h"
 
+/**
+ * @brief Chip select GPIO port connected to the nrf module.
+ * @note Update as needed.
+ */
 #define NRF_CS_GPIO NRF_CS_GPIO_Port
+
+/**
+ * @brief Chip select pin connected to the nrf module.
+ * @note Update as needed.
+ */
 #define NRF_CS_PIN NRF_CS_Pin
 
+/**
+ * @brief Chip enable GPIO port connected to the nrf module.
+ * @note Update as needed.
+ */
 #define NRF_CE_GPIO NRF_CE_GPIO_Port
+
+/**
+ * @brief Chip enable pin connected to the nrf module.
+ * @note Update as needed.
+ */
 #define NRF_CE_PIN NRF_CE_Pin
 
+/**
+ * @brief SPI handle of the SPI port connected to the nrf module.
+ * @note Update as needed.
+ */
 #define SPI_HANDLE &hspi2
 
 /**
  * @brief Addresses of the RX_PW_P# registers.
  */
 static const uint8_t nRF24_RX_PW_PIPE[] = {
-        nRF24_REG_RX_PW_P0,
-        nRF24_REG_RX_PW_P1,
-        nRF24_REG_RX_PW_P2,
-        nRF24_REG_RX_PW_P3,
-        nRF24_REG_RX_PW_P4,
-        nRF24_REG_RX_PW_P5,
+        NRF24_REG_RX_PW_P0,
+        NRF24_REG_RX_PW_P1,
+        NRF24_REG_RX_PW_P2,
+        NRF24_REG_RX_PW_P3,
+        NRF24_REG_RX_PW_P4,
+        NRF24_REG_RX_PW_P5,
 };
 
 /**
  * @brief Addresses of the address registers.
  */
 static const uint8_t nRF24_ADDR_REGS[] = {
-        nRF24_REG_RX_ADDR_P0,
-        nRF24_REG_RX_ADDR_P1,
-        nRF24_REG_RX_ADDR_P2,
-        nRF24_REG_RX_ADDR_P3,
-        nRF24_REG_RX_ADDR_P4,
-        nRF24_REG_RX_ADDR_P5,
-        nRF24_REG_TX_ADDR,
+        NRF24_REG_RX_ADDR_P0,
+        NRF24_REG_RX_ADDR_P1,
+        NRF24_REG_RX_ADDR_P2,
+        NRF24_REG_RX_ADDR_P3,
+        NRF24_REG_RX_ADDR_P4,
+        NRF24_REG_RX_ADDR_P5,
+        NRF24_REG_TX_ADDR,
 };
 
 /**
@@ -128,14 +157,14 @@ static uint8_t nRF24_read_register(const uint8_t reg) {
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
 
-    nRF24_SPI_TR(reg & nRF24_MASK_REG_MAP);
-    value = nRF24_SPI_TR(nRF24_CMD_NOP);
+    nRF24_SPI_TR(reg & NRF24_MASK_REG_MAP);
+    value = nRF24_SPI_TR(NRF24_CMD_NOP);
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_SET);
 
-    if (reg <= nRF24_REG_FIFO_STATUS) {
+    if (reg <= NRF24_REG_FIFO_STATUS) {
         nRF24.registers[reg] = value;
-    } else if ((reg == nRF24_REG_DYNPD) || (reg == nRF24_REG_FEATURE)) {
+    } else if ((reg == NRF24_REG_DYNPD) || (reg == NRF24_REG_FEATURE)) {
         nRF24.registers[reg - 0x04] = value;
     }
 
@@ -151,15 +180,15 @@ static uint8_t nRF24_read_register(const uint8_t reg) {
 static void nRF24_write_register(uint8_t reg, uint8_t value) {
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
 
-    if (reg < nRF24_CMD_W_REGISTER) {
+    if (reg < NRF24_CMD_W_REGISTER) {
         // This is a register access
-        nRF24_SPI_TR(nRF24_CMD_W_REGISTER | (reg & nRF24_MASK_REG_MAP));
+        nRF24_SPI_TR(NRF24_CMD_W_REGISTER | (reg & NRF24_MASK_REG_MAP));
         nRF24_SPI_TR(value);
     } else {
         // This is a single byte command or future command/register
         nRF24_SPI_TR(reg);
-        if ((reg != nRF24_CMD_FLUSH_TX) && (reg != nRF24_CMD_FLUSH_RX) && (reg != nRF24_CMD_REUSE_TX_PL) &&
-            (reg != nRF24_CMD_NOP)) {
+        if ((reg != NRF24_CMD_FLUSH_TX) && (reg != NRF24_CMD_FLUSH_RX) && (reg != NRF24_CMD_REUSE_TX_PL) &&
+            (reg != NRF24_CMD_NOP)) {
             // Send register value
             nRF24_SPI_TR(value);
         }
@@ -167,9 +196,9 @@ static void nRF24_write_register(uint8_t reg, uint8_t value) {
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_SET);
 
-    if (reg <= nRF24_REG_FIFO_STATUS) {
+    if (reg <= NRF24_REG_FIFO_STATUS) {
         nRF24.registers[reg] = value;
-    } else if ((reg == nRF24_REG_DYNPD) || (reg == nRF24_REG_FEATURE)) {
+    } else if ((reg == NRF24_REG_DYNPD) || (reg == NRF24_REG_FEATURE)) {
         nRF24.registers[reg - 4] = value;
     }
 }
@@ -186,7 +215,7 @@ static void nRF24_read_multi_register(uint8_t reg, uint8_t* pBuf, uint8_t count)
 
     nRF24_SPI_TR(reg);
     while (count--) {
-        *pBuf++ = nRF24_SPI_TR(nRF24_CMD_NOP);
+        *pBuf++ = nRF24_SPI_TR(NRF24_CMD_NOP);
     }
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_SET);
@@ -219,10 +248,10 @@ static void nRF24_SetOperationalMode(transceiver_mode_t mode) {
     uint8_t reg;
 
     // Configure PRIM_RX bit of the CONFIG register
-    reg = nRF24_read_register(nRF24_REG_CONFIG);
-    reg &= ~nRF24_CONFIG_PRIM_RX;
-    reg |= (mode & nRF24_CONFIG_PRIM_RX);
-    nRF24_write_register(nRF24_REG_CONFIG, reg);
+    reg = nRF24_read_register(NRF24_REG_CONFIG);
+    reg &= ~NRF24_CONFIG_PRIM_RX;
+    reg |= (mode & NRF24_CONFIG_PRIM_RX);
+    nRF24_write_register(NRF24_REG_CONFIG, reg);
 
     nRF24.configs.mode = mode;
 }
@@ -238,22 +267,22 @@ void nRF24_init(const uint8_t* addr, uint8_t channel) {
     prev_feat = nRF24_GetFeatures();
     nRF24_ActivateFeatures();
     nRF24_GetFeatures();
-    nRF24.info.is_p_variant = (prev_feat == nRF24.registers[nRF24_REG_FEATURE - 0x04]);
-    if (nRF24.registers[nRF24_REG_FEATURE - 0x04]) {
+    nRF24.info.is_p_variant = (prev_feat == nRF24.registers[NRF24_REG_FEATURE - 0x04]);
+    if (nRF24.registers[NRF24_REG_FEATURE - 0x04]) {
         if (nRF24.info.is_p_variant) {
             nRF24_ActivateFeatures();
         }
-        nRF24_write_register(nRF24_REG_FEATURE, 0x00);
+        nRF24_write_register(NRF24_REG_FEATURE, 0x00);
     }
 
-    nRF24_write_register(nRF24_REG_DYNPD, 0x00);
-    nRF24_write_register(nRF24_REG_EN_AA, 0x3F);
-    nRF24_write_register(nRF24_REG_EN_RXADDR, 0x01);
+    nRF24_write_register(NRF24_REG_DYNPD, 0x00);
+    nRF24_write_register(NRF24_REG_EN_AA, 0x3F);
+    nRF24_write_register(NRF24_REG_EN_RXADDR, 0x01);
     nRF24_setPayloadSize(32);
     nRF24_SetAddrWidth(nRF24_ADDR_5_BITS);
     nRF24_SetRFChannel(channel);
-    nRF24_write_multi_register(nRF24_CMD_W_REGISTER | nRF24_REG_TX_ADDR, addr, 5);
-    nRF24_write_multi_register(nRF24_CMD_W_REGISTER | nRF24_REG_RX_ADDR_P0, addr, 5);
+    nRF24_write_multi_register(NRF24_CMD_W_REGISTER | NRF24_REG_TX_ADDR, addr, 5);
+    nRF24_write_multi_register(NRF24_CMD_W_REGISTER | NRF24_REG_RX_ADDR_P0, addr, 5);
     nRF24_ClearIRQFlags();
     nRF24_FlushRX();
     nRF24_FlushTX();
@@ -263,7 +292,7 @@ void nRF24_init(const uint8_t* addr, uint8_t channel) {
 }
 
 bool nRF24_check(const uint8_t* curr_addr) {
-    nRF24_read_multi_register(nRF24_CMD_R_REGISTER | nRF24_REG_TX_ADDR, nRF24.configs.tx_addr, 5);
+    nRF24_read_multi_register(NRF24_CMD_R_REGISTER | NRF24_REG_TX_ADDR, nRF24.configs.tx_addr, 5);
 
     // Compare buffers, return error on first mismatch
     for (uint8_t i = 0; i < 5; i++) {
@@ -284,24 +313,24 @@ void nRF24_setPayloadSize(uint8_t size) {
     }
 
     for (uint8_t i = 0; i < 6; i++) {
-        nRF24_write_register(nRF24_REG_RX_PW_P0 + i, size);
+        nRF24_write_register(NRF24_REG_RX_PW_P0 + i, size);
     }
 }
 
 void nRF24_SetPowerMode(power_state_t mode) {
     uint8_t reg;
 
-    reg = nRF24_read_register(nRF24_REG_CONFIG);
+    reg = nRF24_read_register(NRF24_REG_CONFIG);
     if (mode == nRF24_PWR_UP) {
         // Set the PWR_UP bit of CONFIG register to wake the transceiver
         // It goes into Stanby-I mode with consumption about 26uA
-        reg |= nRF24_CONFIG_PWR_UP;
+        reg |= NRF24_CONFIG_PWR_UP;
     } else {
         // Clear the PWR_UP bit of CONFIG register to put the transceiver
         // into power down mode with consumption about 900nA
-        reg &= ~nRF24_CONFIG_PWR_UP;
+        reg &= ~NRF24_CONFIG_PWR_UP;
     }
-    nRF24_write_register(nRF24_REG_CONFIG, reg);
+    nRF24_write_register(NRF24_REG_CONFIG, reg);
     HAL_Delay(5);
 
     nRF24.configs.pwr_state = mode;
@@ -309,13 +338,13 @@ void nRF24_SetPowerMode(power_state_t mode) {
 
 void nRF24_SetDynamicPayloadLength(dpl_state_t mode) {
     uint8_t reg;
-    reg = nRF24_read_register(nRF24_REG_FEATURE);
+    reg = nRF24_read_register(NRF24_REG_FEATURE);
     if (mode) {
-        nRF24_write_register(nRF24_REG_FEATURE, reg | nRF24_FEATURE_EN_DPL);
-        nRF24_write_register(nRF24_REG_DYNPD, 0x1F);
+        nRF24_write_register(NRF24_REG_FEATURE, reg | NRF24_FEATURE_EN_DPL);
+        nRF24_write_register(NRF24_REG_DYNPD, 0x1F);
     } else {
-        nRF24_write_register(nRF24_REG_FEATURE, reg & ~nRF24_FEATURE_EN_DPL);
-        nRF24_write_register(nRF24_REG_DYNPD, 0x0);
+        nRF24_write_register(NRF24_REG_FEATURE, reg & ~NRF24_FEATURE_EN_DPL);
+        nRF24_write_register(NRF24_REG_DYNPD, 0x0);
     }
 
     nRF24.configs.dpl = mode;
@@ -323,11 +352,11 @@ void nRF24_SetDynamicPayloadLength(dpl_state_t mode) {
 
 void nRF24_SetPayloadWithAck(auto_ack_state_t mode) {
     uint8_t reg;
-    reg = nRF24_read_register(nRF24_REG_FEATURE);
+    reg = nRF24_read_register(NRF24_REG_FEATURE);
     if (mode) {
-        nRF24_write_register(nRF24_REG_FEATURE, reg | nRF24_FEATURE_EN_ACK_PAY);
+        nRF24_write_register(NRF24_REG_FEATURE, reg | NRF24_FEATURE_EN_ACK_PAY);
     } else {
-        nRF24_write_register(nRF24_REG_FEATURE, reg & ~nRF24_FEATURE_EN_ACK_PAY);
+        nRF24_write_register(NRF24_REG_FEATURE, reg & ~NRF24_FEATURE_EN_ACK_PAY);
     }
 
     nRF24.configs.auto_ack = mode;
@@ -337,28 +366,28 @@ void nRF24_SetCRCScheme(crc_scheme_t scheme) {
     uint8_t reg;
 
     // Configure EN_CRC[3] and CRCO[2] bits of the CONFIG register
-    reg = nRF24_read_register(nRF24_REG_CONFIG);
-    reg &= ~nRF24_MASK_CRC;
-    reg |= (scheme & nRF24_MASK_CRC);
-    nRF24_write_register(nRF24_REG_CONFIG, reg);
+    reg = nRF24_read_register(NRF24_REG_CONFIG);
+    reg &= ~NRF24_MASK_CRC;
+    reg |= (scheme & NRF24_MASK_CRC);
+    nRF24_write_register(NRF24_REG_CONFIG, reg);
 
     nRF24.configs.crc = scheme;
 }
 
 void nRF24_SetRFChannel(uint8_t channel) {
-    nRF24_write_register(nRF24_REG_RF_CH, channel);
+    nRF24_write_register(NRF24_REG_RF_CH, channel);
     nRF24.configs.channel = channel;
 }
 
 void nRF24_SetAutoRetr(retransmit_delay_t ard, uint8_t arc) {
     // Set auto retransmit settings (SETUP_RETR register)
-    nRF24_write_register(nRF24_REG_SETUP_RETR, (uint8_t) ((ard << 4) | (arc & nRF24_MASK_RETR_ARC)));
+    nRF24_write_register(NRF24_REG_SETUP_RETR, (uint8_t) ((ard << 4) | (arc & NRF24_MASK_RETR_ARC)));
     nRF24.configs.rt_delay = ard;
     nRF24.configs.rt_cnt = arc;
 }
 
 void nRF24_SetAddrWidth(address_width_t addr_width) {
-    nRF24_write_register(nRF24_REG_SETUP_AW, addr_width);
+    nRF24_write_register(NRF24_REG_SETUP_AW, addr_width);
     nRF24.configs.addr_w = addr_width;
 }
 
@@ -371,11 +400,11 @@ void nRF24_SetAddr(pipe_addr_t pipe, const uint8_t* addr) {
         case nRF24_PIPE0:
         case nRF24_PIPE1:
             // Get address width
-            addr_width = nRF24_read_register(nRF24_REG_SETUP_AW) + 1;
+            addr_width = nRF24_read_register(NRF24_REG_SETUP_AW) + 1;
             // Write address in reverse order (LSByte first)
             addr += addr_width;
             HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
-            nRF24_SPI_TR(nRF24_CMD_W_REGISTER | nRF24_ADDR_REGS[pipe]);
+            nRF24_SPI_TR(NRF24_CMD_W_REGISTER | nRF24_ADDR_REGS[pipe]);
             do {
                 nRF24_SPI_TR(*addr--);
             } while (addr_width--);
@@ -401,10 +430,10 @@ void nRF24_SetTXPower(output_power_t tx_pwr) {
     uint8_t reg;
 
     // Configure RF_PWR[2:1] bits of the RF_SETUP register
-    reg = nRF24_read_register(nRF24_REG_RF_SETUP);
-    reg &= ~nRF24_MASK_RF_PWR;
+    reg = nRF24_read_register(NRF24_REG_RF_SETUP);
+    reg &= ~NRF24_MASK_RF_PWR;
     reg |= tx_pwr;
-    nRF24_write_register(nRF24_REG_RF_SETUP, reg);
+    nRF24_write_register(NRF24_REG_RF_SETUP, reg);
 
     nRF24.configs.tx_pwr = tx_pwr;
 }
@@ -413,10 +442,10 @@ void nRF24_SetDataRate(data_rate_t data_rate) {
     uint8_t reg;
 
     // Configure RF_DR_LOW[5] and RF_DR_HIGH[3] bits of the RF_SETUP register
-    reg = nRF24_read_register(nRF24_REG_RF_SETUP);
-    reg &= ~nRF24_MASK_DATARATE;
+    reg = nRF24_read_register(NRF24_REG_RF_SETUP);
+    reg &= ~NRF24_MASK_DATARATE;
     reg |= data_rate;
-    nRF24_write_register(nRF24_REG_RF_SETUP, reg);
+    nRF24_write_register(NRF24_REG_RF_SETUP, reg);
 
     nRF24.configs.data_rate = data_rate;
 }
@@ -425,38 +454,38 @@ void nRF24_SetRXPipe(pipe_addr_t pipe, auto_ack_state_t aa_state, uint8_t payloa
     uint8_t reg;
 
     // Enable the specified pipe (EN_RXADDR register)
-    reg = (nRF24_read_register(nRF24_REG_EN_RXADDR) | (1 << pipe)) & nRF24_MASK_EN_RX;
-    nRF24_write_register(nRF24_REG_EN_RXADDR, reg);
+    reg = (nRF24_read_register(NRF24_REG_EN_RXADDR) | (1 << pipe)) & NRF24_MASK_EN_RX;
+    nRF24_write_register(NRF24_REG_EN_RXADDR, reg);
 
     // Set RX payload length (RX_PW_Px register)
-    nRF24_write_register(nRF24_RX_PW_PIPE[pipe], payload_len & nRF24_MASK_RX_PW);
+    nRF24_write_register(nRF24_RX_PW_PIPE[pipe], payload_len & NRF24_MASK_RX_PW);
 
     // Set auto acknowledgment for a specified pipe (EN_AA register)
-    reg = nRF24_read_register(nRF24_REG_EN_AA);
+    reg = nRF24_read_register(NRF24_REG_EN_AA);
     if (aa_state == nRF24_AA_ON) {
         reg |= (1 << pipe);
     } else {
         reg &= ~(1 << pipe);
     }
-    nRF24_write_register(nRF24_REG_EN_AA, reg);
+    nRF24_write_register(NRF24_REG_EN_AA, reg);
 }
 
 void nRF24_ClosePipe(pipe_addr_t pipe) {
     uint8_t reg;
 
-    reg = nRF24_read_register(nRF24_REG_EN_RXADDR);
+    reg = nRF24_read_register(NRF24_REG_EN_RXADDR);
     reg &= ~(1 << pipe);
-    reg &= nRF24_MASK_EN_RX;
-    nRF24_write_register(nRF24_REG_EN_RXADDR, reg);
+    reg &= NRF24_MASK_EN_RX;
+    nRF24_write_register(NRF24_REG_EN_RXADDR, reg);
 }
 
 void nRF24_EnableAA(pipe_addr_t pipe) {
     uint8_t reg;
 
     // Set bit in EN_AA register
-    reg = nRF24_read_register(nRF24_REG_EN_AA);
+    reg = nRF24_read_register(NRF24_REG_EN_AA);
     reg |= (1 << pipe);
-    nRF24_write_register(nRF24_REG_EN_AA, reg);
+    nRF24_write_register(NRF24_REG_EN_AA, reg);
 }
 
 void nRF24_DisableAA(pipe_addr_t pipe) {
@@ -464,88 +493,88 @@ void nRF24_DisableAA(pipe_addr_t pipe) {
 
     if (pipe > 5) {
         // Disable Auto-ACK for ALL pipes
-        nRF24_write_register(nRF24_REG_EN_AA, 0x00);
+        nRF24_write_register(NRF24_REG_EN_AA, 0x00);
     } else {
         // Clear bit in the EN_AA register
-        reg = nRF24_read_register(nRF24_REG_EN_AA);
+        reg = nRF24_read_register(NRF24_REG_EN_AA);
         reg &= ~(1 << pipe);
-        nRF24_write_register(nRF24_REG_EN_AA, reg);
+        nRF24_write_register(NRF24_REG_EN_AA, reg);
     }
 }
 
 uint8_t nRF24_GetStatus(void) {
-    nRF24.registers[nRF24_REG_STATUS] = nRF24_read_register(nRF24_REG_STATUS);
-    return nRF24.registers[nRF24_REG_STATUS];
+    nRF24.registers[NRF24_REG_STATUS] = nRF24_read_register(NRF24_REG_STATUS);
+    return nRF24.registers[NRF24_REG_STATUS];
 }
 
 uint8_t nRF24_GetIRQFlags(void) {
-    return (nRF24_read_register(nRF24_REG_STATUS) & nRF24_MASK_STATUS_IRQ);
+    return (nRF24_read_register(NRF24_REG_STATUS) & NRF24_MASK_STATUS_IRQ);
 }
 
 uint8_t nRF24_GetStatus_RXFIFO(void) {
-    nRF24.info.rx_fifo_status = (nRF24_read_register(nRF24_REG_FIFO_STATUS) & nRF24_MASK_RXFIFO);
+    nRF24.info.rx_fifo_status = (nRF24_read_register(NRF24_REG_FIFO_STATUS) & NRF24_MASK_RXFIFO);
     return (uint8_t) nRF24.info.rx_fifo_status;
 }
 
 uint8_t nRF24_GetStatus_TXFIFO(void) {
-    nRF24.info.tx_fifo_status = ((nRF24_read_register(nRF24_REG_FIFO_STATUS) & nRF24_MASK_TXFIFO) >> 4);
+    nRF24.info.tx_fifo_status = ((nRF24_read_register(NRF24_REG_FIFO_STATUS) & NRF24_MASK_TXFIFO) >> 4);
     return (uint8_t) nRF24.info.tx_fifo_status;
 }
 
 uint8_t nRF24_GetRXSource(void) {
-    return ((nRF24_read_register(nRF24_REG_STATUS) & nRF24_MASK_RX_P_NO) >> 1);
+    return ((nRF24_read_register(NRF24_REG_STATUS) & NRF24_MASK_RX_P_NO) >> 1);
 }
 
 uint8_t nRF24_GetRetransmitCounters(void) {
-    return (nRF24_read_register(nRF24_REG_OBSERVE_TX));
+    return (nRF24_read_register(NRF24_REG_OBSERVE_TX));
 }
 
 uint8_t nRF24_GetFeatures(void) {
-    return nRF24_read_register(nRF24_REG_FEATURE);
+    return nRF24_read_register(NRF24_REG_FEATURE);
 }
 
 void nRF24_ResetPLOS(void) {
     uint8_t reg;
 
     // The PLOS counter is reset after write to RF_CH register
-    reg = nRF24_read_register(nRF24_REG_RF_CH);
-    nRF24_write_register(nRF24_REG_RF_CH, reg);
+    reg = nRF24_read_register(NRF24_REG_RF_CH);
+    nRF24_write_register(NRF24_REG_RF_CH, reg);
 }
 
 void nRF24_FlushTX(void) {
-    nRF24_write_register(nRF24_CMD_FLUSH_TX, nRF24_CMD_NOP);
+    nRF24_write_register(NRF24_CMD_FLUSH_TX, NRF24_CMD_NOP);
 }
 
 void nRF24_FlushRX(void) {
-    nRF24_write_register(nRF24_CMD_FLUSH_RX, nRF24_CMD_NOP);
+    nRF24_write_register(NRF24_CMD_FLUSH_RX, NRF24_CMD_NOP);
 }
 
 void nRF24_ClearIRQFlags(void) {
     uint8_t reg;
 
     // Clear RX_DR, TX_DS and MAX_RT bits of the STATUS register
-    reg = nRF24_read_register(nRF24_REG_STATUS);
-    reg |= nRF24_MASK_STATUS_IRQ;
-    nRF24_write_register(nRF24_REG_STATUS, reg);
+    reg = nRF24_read_register(NRF24_REG_STATUS);
+    reg |= NRF24_MASK_STATUS_IRQ;
+    nRF24_write_register(NRF24_REG_STATUS, reg);
 }
 
 void nRF24_ActivateFeatures(void) {
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
-    nRF24_SPI_TR(nRF24_CMD_ACTIVATE);
+    nRF24_SPI_TR(NRF24_CMD_ACTIVATE);
     nRF24_SPI_TR(0x73);
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_SET);
 }
 
-void nRF24_WritePayload(const nrf24_data_t* nRF24_data) {
-    nRF24_write_multi_register(nRF24_CMD_W_TX_PAYLOAD, (const uint8_t*) nRF24_data, nRF24_data->size.payload);
+void NRF24_WritePayload(const nrf24_data_t* nRF24_data) {
+    nRF24_write_multi_register(NRF24_CMD_W_TX_PAYLOAD, (const uint8_t*) nRF24_data, nRF24_data->size.payload);
 }
 
 static uint8_t nRF24_GetRxDplPayloadWidth(void) {
     uint8_t value;
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
-    nRF24_SPI_TR(nRF24_CMD_R_RX_PL_WID);
-    value = nRF24_SPI_TR(nRF24_CMD_NOP);
+    nRF24_SPI_TR(NRF24_CMD_R_RX_PL_WID);
+    value = nRF24_SPI_TR(NRF24_CMD_NOP);
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_SET);
 
     return value;
@@ -557,7 +586,7 @@ static nRF24_RXResult nRF24_ReadPayloadGeneric(nrf24_data_t* nRF24_data, uint8_t
     uint8_t pld_size;
 
     // Extract a payload pipe number from the STATUS register
-    pipe = (nRF24_read_register(nRF24_REG_STATUS) & nRF24_MASK_RX_P_NO) >> 1;
+    pipe = (nRF24_read_register(NRF24_REG_STATUS) & NRF24_MASK_RX_P_NO) >> 1;
 
     // RX FIFO empty?
     if (pipe < 6) {
@@ -575,7 +604,7 @@ static nRF24_RXResult nRF24_ReadPayloadGeneric(nrf24_data_t* nRF24_data, uint8_t
 
         // Read a payload from the RX FIFO
         if (nRF24_data->size.payload) {
-            nRF24_read_multi_register(nRF24_CMD_R_RX_PAYLOAD, (uint8_t*) nRF24_data, nRF24_data->size.payload);
+            nRF24_read_multi_register(NRF24_CMD_R_RX_PAYLOAD, (uint8_t*) nRF24_data, nRF24_data->size.payload);
         }
 
         return ((nRF24_RXResult) pipe);
@@ -597,15 +626,15 @@ nRF24_RXResult nRF24_ReadPayloadDpl(nrf24_data_t* nRF24_data) {
 
 nRF24_TXResult nRF24_TransmitPacket(const nrf24_data_t* nRF24_data) {
 
-    uint32_t wait = nRF24_WAIT_TIMEOUT;
+    uint32_t wait = NRF24_WAIT_TIMEOUT;
 
     // Transfer a data from the specified buffer to the TX FIFO
 
-    nRF24_WritePayload(nRF24_data);
+    NRF24_WritePayload(nRF24_data);
     HAL_Delay(1);
     nRF24_enable();
 
-    while ((!get_flag(NRF_SENT)) && (!get_flag(NRF_MAX_RT)) && wait) {
+    while ((!nrf_get_flag(NRF_SENT)) && (!nrf_get_flag(NRF_MAX_RT)) && wait) {
         HAL_Delay(1);
         wait--;
     }
@@ -620,16 +649,16 @@ nRF24_TXResult nRF24_TransmitPacket(const nrf24_data_t* nRF24_data) {
     // Clear pending IRQ flags
     nRF24_ClearIRQFlags();
 
-    if (get_flag(NRF_MAX_RT)) {
+    if (nrf_get_flag(NRF_MAX_RT)) {
         // Auto retransmit counter exceeds the programmed maximum limit
-        clear_flag(NRF_MAX_RT);
+        nrf_clear_flag(NRF_MAX_RT);
         nRF24_FlushTX();
         return nRF24_TX_MAXRT;
     }
 
-    if (get_flag(NRF_SENT)) {
+    if (nrf_get_flag(NRF_SENT)) {
         // Successful transmission
-        clear_flag(NRF_SENT);
+        nrf_clear_flag(NRF_SENT);
         return nRF24_TX_SUCCESS;
     }
 
@@ -638,11 +667,11 @@ nRF24_TXResult nRF24_TransmitPacket(const nrf24_data_t* nRF24_data) {
     return nRF24_TX_ERROR;
 }
 
-void nRF24_WriteAckPayload(nRF24_RXResult pipe, const nrf24_data_t* nRF24_data) {
+void NRF24_WriteAckPayload(nRF24_RXResult pipe, const nrf24_data_t* nRF24_data) {
     uint8_t length = nRF24_data->size.payload;
 
     HAL_GPIO_WritePin(NRF_CS_GPIO, NRF_CS_PIN, GPIO_PIN_RESET);
-    nRF24_SPI_TR(nRF24_CMD_W_ACK_PAYLOAD | pipe);
+    nRF24_SPI_TR(NRF24_CMD_W_ACK_PAYLOAD | pipe);
     while (length--) {
         nRF24_SPI_TR(*(const uint8_t*) nRF24_data++);
     }
@@ -650,9 +679,9 @@ void nRF24_WriteAckPayload(nRF24_RXResult pipe, const nrf24_data_t* nRF24_data) 
 }
 
 void nRF24_ReuseTX(void) {
-    uint8_t status = nRF24_read_register(nRF24_REG_STATUS);
-    nRF24_write_register(nRF24_REG_STATUS, status | nRF24_FLAG_MAX_RT);
-    nRF24_write_register(nRF24_CMD_REUSE_TX_PL, nRF24_CMD_NOP);
+    uint8_t status = nRF24_read_register(NRF24_REG_STATUS);
+    nRF24_write_register(NRF24_REG_STATUS, status | NRF24_FLAG_MAX_RT);
+    nRF24_write_register(NRF24_CMD_REUSE_TX_PL, NRF24_CMD_NOP);
     nRF24_disable();
     nRF24_enable();
 }
@@ -667,19 +696,19 @@ void nRF24_StartCarrier(output_power_t pwr, uint8_t channel) {
             }};
 
     nRF24_StopListening();
-    rf_status = nRF24_read_register(nRF24_REG_RF_SETUP);
-    nRF24_write_register(nRF24_REG_RF_SETUP, rf_status | nRF24_FLAG_CONT_WAVE | nRF24_FLAG_PLL_LOCK);
+    rf_status = nRF24_read_register(NRF24_REG_RF_SETUP);
+    nRF24_write_register(NRF24_REG_RF_SETUP, rf_status | NRF24_FLAG_CONT_WAVE | NRF24_FLAG_PLL_LOCK);
 
     if (nRF24.info.is_p_variant) {
-        nRF24_write_register(nRF24_REG_EN_AA, 0x00);
+        nRF24_write_register(NRF24_REG_EN_AA, 0x00);
         nRF24_SetAutoRetr(0, 0);
         for (uint8_t i = 0; i < PLD_LEN; i++) {
             dummy.data[i] = 0xFF;
         }
 
-        nRF24_write_multi_register(nRF24_REG_TX_ADDR, dummy.data, 5);
+        nRF24_write_multi_register(NRF24_REG_TX_ADDR, dummy.data, 5);
         nRF24_FlushTX();
-        nRF24_WritePayload(&dummy);
+        NRF24_WritePayload(&dummy);
         nRF24_SetCRCScheme(nRF24_CRC_off);
     }
     nRF24_SetTXPower(pwr);
@@ -694,14 +723,14 @@ void nRF24_StartCarrier(output_power_t pwr, uint8_t channel) {
 
 void nRF24_StopCarrier(void) {
     nRF24_SetPowerMode(nRF24_PWR_DOWN);
-    uint8_t rf_status = nRF24_read_register(nRF24_REG_RF_SETUP);
-    nRF24_write_register(nRF24_REG_RF_SETUP, (rf_status & ~nRF24_FLAG_PLL_LOCK) & ~nRF24_FLAG_CONT_WAVE);
+    uint8_t rf_status = nRF24_read_register(NRF24_REG_RF_SETUP);
+    nRF24_write_register(NRF24_REG_RF_SETUP, (rf_status & ~NRF24_FLAG_PLL_LOCK) & ~NRF24_FLAG_CONT_WAVE);
     nRF24_disable();
 }
 
 bool nRF24_CarrierDetect(void) {
-    nRF24.registers[nRF24_REG_RPD] = nRF24_read_register(nRF24_REG_RPD);
-    return nRF24.registers[nRF24_REG_RPD] & 1;
+    nRF24.registers[NRF24_REG_RPD] = nRF24_read_register(NRF24_REG_RPD);
+    return nRF24.registers[NRF24_REG_RPD] & 1;
 }
 
 static bool nRF24_SendData(const nrf24_data_t* nRF24_data) {
@@ -765,7 +794,7 @@ void nRF24_RetrieveData(const nrf24_data_t in_data, void* out_data) {
 }
 
 bool nRF24_Talk(const nrf24_data_t question, nrf24_data_t* answer, transceiver_mode_t after_set) {
-    uint8_t timeout = nRF24_WAIT_TIMEOUT;
+    uint8_t timeout = NRF24_WAIT_TIMEOUT;
     nRF24_StopListening();
 
     while (!nRF24_SendData(&question) && timeout) {
@@ -783,9 +812,9 @@ bool nRF24_Talk(const nrf24_data_t question, nrf24_data_t* answer, transceiver_m
     }
 
     if ((answer != NULL) && (question.kind == REQUEST)) {
-        timeout = nRF24_WAIT_TIMEOUT;
+        timeout = NRF24_WAIT_TIMEOUT;
         nRF24_StartListening();
-        while (!get_flag(NRF_RECEIVE) && timeout) {
+        while (!nrf_get_flag(NRF_RECEIVE) && timeout) {
             timeout--;
             HAL_Delay(10);
         }
@@ -799,7 +828,7 @@ bool nRF24_Talk(const nrf24_data_t question, nrf24_data_t* answer, transceiver_m
             return false;
         }
 
-        clear_flag(NRF_RECEIVE);
+        nrf_clear_flag(NRF_RECEIVE);
         nRF24_GetData(answer);
     }
 
